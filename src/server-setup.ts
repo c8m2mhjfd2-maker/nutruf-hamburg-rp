@@ -1,5 +1,5 @@
 import { ChannelType, Guild, PermissionFlagsBits, OverwriteResolvable } from 'discord.js';
-import { saveSetting, rememberManagedChannel } from './db.js';
+import { saveSetting, rememberManagedChannel, saveRoleMap } from './db.js';
 
 type Entry = { name: string; type: ChannelType; setting?: string; public?: boolean };
 type Group = { name: string; visibility: 'public' | 'team' | 'mod' | 'admin'; channels: Entry[] };
@@ -22,6 +22,10 @@ export const structure: Group[] = [
  { name:'🎧 SUPPORT-RÄUME', visibility:'team', channels:[] }
 ];
 
+const roleDefinitions = [
+ { key:'admin', name:'👑 Serverleitung', color:0xf1c40f }, { key:'management', name:'🛠️ Administration', color:0xe67e22 }, { key:'moderation', name:'🛡️ Moderation', color:0xe74c3c }, { key:'team', name:'🎫 Support-Team', color:0x3498db }, { key:'onduty', name:'🟢 On Duty', color:0x2ecc71 }, { key:'police', name:'👮 Polizei', color:0x2980b9 }, { key:'fire', name:'🚒 Feuerwehr', color:0xc0392b }, { key:'ems', name:'🚑 Rettungsdienst', color:0x1abc9c }, { key:'traffic', name:'🚕 Verkehr', color:0xf39c12 }, { key:'gang', name:'🏴 Gang-Leitung', color:0x8e44ad }, { key:'property', name:'🏠 Immobilien-Team', color:0x9b59b6 }, { key:'member', name:'👤 Bürger', color:0x95a5a6 }
+] as const;
+
 export function setupPreview() { return structure.map(g=>`**${g.name}**\n${g.channels.length?g.channels.map(c=>`${c.type===ChannelType.GuildVoice?'🔊':'#'} ${c.name}`).join('\n'):'(leer, für temporäre Support-Räume)'}`).join('\n\n'); }
 
 function overwrites(guild: Guild, visibility: Group['visibility'], teamRoleId?: string, modRoleId?: string): OverwriteResolvable[] | undefined {
@@ -35,9 +39,13 @@ function overwrites(guild: Guild, visibility: Group['visibility'], teamRoleId?: 
 }
 
 export async function buildServer(guild: Guild, teamRoleId?: string, ondutyRoleId?: string, modRoleId?: string) {
- if (teamRoleId && !guild.roles.cache.has(teamRoleId)) throw new Error('Die angegebene Team-Rolle wurde nicht gefunden.');
- if (ondutyRoleId && !guild.roles.cache.has(ondutyRoleId)) throw new Error('Die angegebene On-Duty-Rolle wurde nicht gefunden.');
- if (modRoleId && !guild.roles.cache.has(modRoleId)) throw new Error('Die angegebene Moderations-Rolle wurde nicht gefunden.');
+ const roleIds: Record<string,string> = {};
+ for (const definition of roleDefinitions) { let role=guild.roles.cache.find(r=>r.name===definition.name); if (!role) role=await guild.roles.create({name:definition.name,color:definition.color,reason:'Nutruf Hamburg RP Server-Setup'}); roleIds[definition.key]=role.id; }
+ if (teamRoleId && guild.roles.cache.has(teamRoleId)) roleIds.team=teamRoleId;
+ if (ondutyRoleId && guild.roles.cache.has(ondutyRoleId)) roleIds.onduty=ondutyRoleId;
+ if (modRoleId && guild.roles.cache.has(modRoleId)) roleIds.moderation=modRoleId;
+ teamRoleId=roleIds.team; ondutyRoleId=roleIds.onduty; modRoleId=roleIds.moderation;
+ saveRoleMap(guild.id,roleIds);
  const created:string[]=[]; const existing:string[]=[]; const incompatible:string[]=[]; const ids:Record<string,string>={};
  for (const group of structure) {
   let category=guild.channels.cache.find(c=>c.type===ChannelType.GuildCategory && c.name===group.name);

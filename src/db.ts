@@ -19,6 +19,7 @@ for (const column of ['team_role_id','onduty_role_id','team_lobby_channel','team
 export type Settings = { emergency_channel?: string; log_channel?: string; ticket_category?: string; application_channel?: string; responder_roles: Record<string,string> };
 export function getSettings(guildId: string): Settings { return (db.prepare('SELECT * FROM settings WHERE guild_id=?').get(guildId) as Settings | undefined) ?? { responder_roles: {} }; }
 export function saveSetting(guildId: string, key: string, value: string) { db.prepare(`INSERT INTO settings (guild_id, ${key}) VALUES (?, ?) ON CONFLICT(guild_id) DO UPDATE SET ${key}=excluded.${key}`).run(guildId, value); }
+export function saveRoleMap(guildId: string, roles: Record<string,string>) { db.prepare("INSERT INTO settings (guild_id,responder_roles) VALUES (?,?) ON CONFLICT(guild_id) DO UPDATE SET responder_roles=excluded.responder_roles").run(guildId, JSON.stringify(roles)); }
 export function addLog(guildId: string, text: string, channelId?: string) { return { guildId, text, channelId }; }
 export function rememberManagedChannel(guildId: string, channelId: string) { db.prepare('INSERT OR IGNORE INTO managed_channels (guild_id,channel_id) VALUES (?,?)').run(guildId,channelId); }
 export function managedChannels(guildId: string) { return db.prepare('SELECT channel_id FROM managed_channels WHERE guild_id=?').all(guildId) as {channel_id:string}[]; }
