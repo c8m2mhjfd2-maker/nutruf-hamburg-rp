@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS emergencies (id INTEGER PRIMARY KEY AUTOINCREMENT, gu
 CREATE TABLE IF NOT EXISTS duty (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, department TEXT NOT NULL, status TEXT NOT NULL, started_at TEXT, ended_at TEXT, PRIMARY KEY (guild_id,user_id,department));
 CREATE TABLE IF NOT EXISTS profiles (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, rp_name TEXT NOT NULL, department TEXT, rank TEXT, rp_status TEXT NOT NULL DEFAULT 'Aktiv', PRIMARY KEY (guild_id,user_id));
 CREATE TABLE IF NOT EXISTS points (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, value INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id,user_id));
+CREATE TABLE IF NOT EXISTS managed_channels (guild_id TEXT NOT NULL, channel_id TEXT NOT NULL, PRIMARY KEY (guild_id,channel_id));
 `);
 for (const column of ['team_role_id','onduty_role_id','team_lobby_channel','team_list_channel','rating_channel','gang_channel','property_channel','map_url']) { try { db.exec(`ALTER TABLE settings ADD COLUMN ${column} TEXT`); } catch {} }
 
@@ -19,3 +20,6 @@ export type Settings = { emergency_channel?: string; log_channel?: string; ticke
 export function getSettings(guildId: string): Settings { return (db.prepare('SELECT * FROM settings WHERE guild_id=?').get(guildId) as Settings | undefined) ?? { responder_roles: {} }; }
 export function saveSetting(guildId: string, key: string, value: string) { db.prepare(`INSERT INTO settings (guild_id, ${key}) VALUES (?, ?) ON CONFLICT(guild_id) DO UPDATE SET ${key}=excluded.${key}`).run(guildId, value); }
 export function addLog(guildId: string, text: string, channelId?: string) { return { guildId, text, channelId }; }
+export function rememberManagedChannel(guildId: string, channelId: string) { db.prepare('INSERT OR IGNORE INTO managed_channels (guild_id,channel_id) VALUES (?,?)').run(guildId,channelId); }
+export function managedChannels(guildId: string) { return db.prepare('SELECT channel_id FROM managed_channels WHERE guild_id=?').all(guildId) as {channel_id:string}[]; }
+export function forgetManagedChannel(guildId: string, channelId: string) { db.prepare('DELETE FROM managed_channels WHERE guild_id=? AND channel_id=?').run(guildId,channelId); }

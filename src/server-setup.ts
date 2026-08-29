@@ -1,5 +1,5 @@
 import { ChannelType, Guild, PermissionFlagsBits, OverwriteResolvable } from 'discord.js';
-import { saveSetting } from './db.js';
+import { saveSetting, rememberManagedChannel } from './db.js';
 
 type Entry = { name: string; type: ChannelType; setting?: string; public?: boolean };
 type Group = { name: string; visibility: 'public' | 'team' | 'mod' | 'admin'; channels: Entry[] };
@@ -41,12 +41,12 @@ export async function buildServer(guild: Guild, teamRoleId?: string, ondutyRoleI
  const created:string[]=[]; const existing:string[]=[]; const incompatible:string[]=[]; const ids:Record<string,string>={};
  for (const group of structure) {
   let category=guild.channels.cache.find(c=>c.type===ChannelType.GuildCategory && c.name===group.name);
-  if (!category) { category=await guild.channels.create({name:group.name,type:ChannelType.GuildCategory,permissionOverwrites:overwrites(guild,group.visibility,teamRoleId,modRoleId)}); created.push(group.name); } else existing.push(group.name);
+  if (!category) { category=await guild.channels.create({name:group.name,type:ChannelType.GuildCategory,permissionOverwrites:overwrites(guild,group.visibility,teamRoleId,modRoleId)}); rememberManagedChannel(guild.id,category.id); created.push(group.name); } else existing.push(group.name);
   for (const entry of group.channels) {
    const found=guild.channels.cache.find(c=>c.parentId===category!.id && c.name===entry.name);
    if (found) { if(found.type!==entry.type) incompatible.push(`${group.name} / ${entry.name}`); else { existing.push(entry.name); ids[entry.name]=found.id; if (entry.setting) saveSetting(guild.id,entry.setting,found.id); } continue; }
    const channel=await guild.channels.create({name:entry.name,type:entry.type as ChannelType.GuildText | ChannelType.GuildVoice,parent:category.id,permissionOverwrites:overwrites(guild,group.visibility,teamRoleId,modRoleId),topic:entry.type===ChannelType.GuildText?`Nutruf Hamburg RP — ${entry.name}`:undefined});
-   created.push(entry.name); ids[entry.name]=channel.id; if (entry.setting) saveSetting(guild.id,entry.setting,channel.id);
+   created.push(entry.name); rememberManagedChannel(guild.id,channel.id); ids[entry.name]=channel.id; if (entry.setting) saveSetting(guild.id,entry.setting,channel.id);
   }
  }
  const supportCategory=guild.channels.cache.find(c=>c.type===ChannelType.GuildCategory && c.name==='🎧 SUPPORT-RÄUME');
