@@ -19,6 +19,6 @@ services += item('StarterPlayer', 'StarterPlayer', children=item('StarterPlayerS
 services += item('Workspace', 'Workspace')
 services += item('Players', 'Players')
 services += item('Lighting', 'Lighting')
-xml = '<?xml version="1.0" encoding="utf-8"?>\n<roblox version="4" xmlns:xmime="http://www.w3.org/2005/05/xmlmime">\n' + services + '\n</roblox>\n'
+xml = '<?xml version="1.0" encoding="utf-8"?>\n<roblox version="4" xmlns:xmime="http://www.w3.org/2005/05/xmlmime">\n' + item('DataModel', 'FireworkFactoryTycoon', children=services) + '\n</roblox>\n'
 (root / 'FireworkFactoryTycoon.rbxlx').write_text(xml)
 print('created', root / 'FireworkFactoryTycoon.rbxlx')

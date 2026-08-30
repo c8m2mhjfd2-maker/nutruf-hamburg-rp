@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <roblox version="4" xmlns:xmime="http://www.w3.org/2005/05/xmlmime">
-<Item class="ReplicatedStorage"><Properties><string name="Name">ReplicatedStorage</string></Properties></Item><Item class="ServerScriptService"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script"><Properties><string name="Name">FireworkFactory.server</string><ProtectedString name="Source"><![CDATA[-- Firework Factory Tycoon | Server logic
+<Item class="DataModel"><Properties><string name="Name">FireworkFactoryTycoon</string></Properties><Item class="ReplicatedStorage"><Properties><string name="Name">ReplicatedStorage</string></Properties></Item><Item class="ServerScriptService"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script"><Properties><string name="Name">FireworkFactory.server</string><ProtectedString name="Source"><![CDATA[-- Firework Factory Tycoon | Server logic
 -- Alles ist bewusst fiktional: Komponenten besitzen Spielwerte, keine realen Herstellungsangaben.
 
 local Players = game:GetService("Players")
@@ -295,5 +295,5 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 UserInputService.MouseBehavior = Enum.MouseBehavior.Default
 
-]]></ProtectedString></Properties></Item></Item></Item><Item class="Workspace"><Properties><string name="Name">Workspace</string></Properties></Item><Item class="Players"><Properties><string name="Name">Players</string></Properties></Item><Item class="Lighting"><Properties><string name="Name">Lighting</string></Properties></Item>
+]]></ProtectedString></Properties></Item></Item></Item><Item class="Workspace"><Properties><string name="Name">Workspace</string></Properties></Item><Item class="Players"><Properties><string name="Name">Players</string></Properties></Item><Item class="Lighting"><Properties><string name="Name">Lighting</string></Properties></Item></Item>
 </roblox>
