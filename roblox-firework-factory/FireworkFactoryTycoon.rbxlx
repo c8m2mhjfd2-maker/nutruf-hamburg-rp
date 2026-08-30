@@ -100,6 +100,15 @@ local function createPlot(player)
     label.TextColor3 = Color3.new(1,1,1)
     label.Text = player.DisplayName .. "'s Factory"
     label.Parent = gui
+    local function station(name, pos, size, color, text)
+        local part = Instance.new("Part"); part.Name=name; part.Size=size; part.Position=origin+pos; part.Anchored=true; part.Material=Enum.Material.Metal; part.Color=color; part.Parent=model
+        local board=Instance.new("BillboardGui"); board.Size=UDim2.fromOffset(160,35); board.StudsOffset=Vector3.new(0, size.Y/2+1, 0); board.AlwaysOnTop=true; board.Parent=part
+        local t=Instance.new("TextLabel"); t.Size=UDim2.fromScale(1,1); t.BackgroundColor3=Color3.fromRGB(20,24,34); t.BackgroundTransparency=.15; t.Text=text; t.TextColor3=Color3.new(1,1,1); t.TextScaled=true; t.Font=Enum.Font.GothamBold; t.Parent=board
+        local tc=Instance.new("UICorner"); tc.CornerRadius=UDim.new(0,8); tc.Parent=t
+    end
+    station("Workshop", Vector3.new(-14,2,-5), Vector3.new(10,4,7), Color3.fromRGB(55,105,155), "WERKBANK")
+    station("Storage", Vector3.new(15,2,-5), Vector3.new(10,4,7), Color3.fromRGB(90,120,80), "LAGER")
+    station("TestArena", Vector3.new(0,1,9), Vector3.new(20,2,10), Color3.fromRGB(110,75,130), "TESTSHOW")
     local spawn = Instance.new("SpawnLocation")
     spawn.Name = "FactorySpawn"
     spawn.Size = Vector3.new(5, 1, 5)
@@ -209,11 +218,12 @@ local recipe = {product="Rakete", powder=2, colors={"Rot"}, spark="Glitzer", pat
 local selectedColors = {Rot=true}
 
 local gui = Instance.new("ScreenGui"); gui.Name = "FireworkFactoryUI"; gui.ResetOnSpawn = false; gui.Parent = player:WaitForChild("PlayerGui")
-local panel = Instance.new("Frame"); panel.Size = UDim2.fromOffset(430, 610); panel.Position = UDim2.new(0, 22, 0.5, -305); panel.BackgroundColor3 = Color3.fromRGB(24, 27, 38); panel.BorderSizePixel = 0; panel.Parent = gui
+local panel = Instance.new("Frame"); panel.Size = UDim2.fromOffset(430, 760); panel.Position = UDim2.new(0, 22, 0.5, -380); panel.BackgroundColor3 = Color3.fromRGB(24, 27, 38); panel.BorderSizePixel = 0; panel.Parent = gui
 local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, 14); corner.Parent = panel
+local scale = Instance.new("UIScale"); scale.Scale = math.min(1, (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.Y or 900) / 820); scale.Parent = panel
 local title = Instance.new("TextLabel"); title.Size = UDim2.new(1, -30, 0, 42); title.Position = UDim2.fromOffset(15, 12); title.BackgroundTransparency = 1; title.Text = "FEUERWERK-WERKBANK"; title.TextColor3 = Color3.fromRGB(255, 183, 66); title.Font = Enum.Font.GothamBold; title.TextSize = 22; title.Parent = panel
 local status = Instance.new("TextLabel"); status.Size = UDim2.new(1, -30, 0, 36); status.Position = UDim2.fromOffset(15, 52); status.BackgroundTransparency = 1; status.TextWrapped = true; status.TextColor3 = Color3.fromRGB(205, 210, 225); status.Font = Enum.Font.Gotham; status.TextSize = 14; status.Text = "Stelle dein virtuelles Feuerwerk zusammen."; status.Parent = panel
-local controls = Instance.new("TextLabel"); controls.Size = UDim2.new(1, -30, 0, 22); controls.Position = UDim2.fromOffset(15, 580); controls.BackgroundTransparency = 1; controls.Text = "PS5: Touchpad = Maus an/aus | Linker Stick = bewegen | X = auswählen"; controls.TextColor3 = Color3.fromRGB(150, 160, 185); controls.Font = Enum.Font.Gotham; controls.TextSize = 11; controls.TextXAlignment = Enum.TextXAlignment.Left; controls.Parent = panel
+local controls = Instance.new("TextLabel"); controls.Size = UDim2.new(1, -30, 0, 22); controls.Position = UDim2.fromOffset(15, 730); controls.BackgroundTransparency = 1; controls.Text = "PS5: Touchpad = Maus an/aus | Linker Stick = bewegen | X = auswählen"; controls.TextColor3 = Color3.fromRGB(150, 160, 185); controls.Font = Enum.Font.Gotham; controls.TextSize = 11; controls.TextXAlignment = Enum.TextXAlignment.Left; controls.Parent = panel
 local cursor = Instance.new("Frame"); cursor.Name = "ControllerCursor"; cursor.Size = UDim2.fromOffset(18,18); cursor.AnchorPoint = Vector2.new(.5,.5); cursor.Position = UDim2.new(.5,0,.5,0); cursor.BackgroundColor3 = Color3.fromRGB(255,190,55); cursor.BorderSizePixel = 2; cursor.BorderColor3 = Color3.new(1,1,1); cursor.Visible = false; cursor.ZIndex = 100; cursor.Parent = gui
 local cursorCorner=Instance.new("UICorner"); cursorCorner.CornerRadius=UDim.new(1,0); cursorCorner.Parent=cursor
 local mouseMode = false

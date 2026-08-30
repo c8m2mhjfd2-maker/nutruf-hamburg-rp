@@ -98,6 +98,15 @@ local function createPlot(player)
     label.TextColor3 = Color3.new(1,1,1)
     label.Text = player.DisplayName .. "'s Factory"
     label.Parent = gui
+    local function station(name, pos, size, color, text)
+        local part = Instance.new("Part"); part.Name=name; part.Size=size; part.Position=origin+pos; part.Anchored=true; part.Material=Enum.Material.Metal; part.Color=color; part.Parent=model
+        local board=Instance.new("BillboardGui"); board.Size=UDim2.fromOffset(160,35); board.StudsOffset=Vector3.new(0, size.Y/2+1, 0); board.AlwaysOnTop=true; board.Parent=part
+        local t=Instance.new("TextLabel"); t.Size=UDim2.fromScale(1,1); t.BackgroundColor3=Color3.fromRGB(20,24,34); t.BackgroundTransparency=.15; t.Text=text; t.TextColor3=Color3.new(1,1,1); t.TextScaled=true; t.Font=Enum.Font.GothamBold; t.Parent=board
+        local tc=Instance.new("UICorner"); tc.CornerRadius=UDim.new(0,8); tc.Parent=t
+    end
+    station("Workshop", Vector3.new(-14,2,-5), Vector3.new(10,4,7), Color3.fromRGB(55,105,155), "WERKBANK")
+    station("Storage", Vector3.new(15,2,-5), Vector3.new(10,4,7), Color3.fromRGB(90,120,80), "LAGER")
+    station("TestArena", Vector3.new(0,1,9), Vector3.new(20,2,10), Color3.fromRGB(110,75,130), "TESTSHOW")
     local spawn = Instance.new("SpawnLocation")
     spawn.Name = "FactorySpawn"
     spawn.Size = Vector3.new(5, 1, 5)
