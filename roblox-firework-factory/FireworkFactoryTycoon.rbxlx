@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<roblox version="4" xmlns:xmime="http://www.w3.org/2005/05/xmlmime">
+<Item class="ReplicatedStorage"><Properties><string name="Name">ReplicatedStorage</string></Properties></Item><Item class="ServerScriptService"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script"><Properties><string name="Name">FireworkFactory.server</string><ProtectedString name="Source"><![CDATA[-- Firework Factory Tycoon | Server logic
+-- Alles ist bewusst fiktional: Komponenten besitzen Spielwerte, keine realen Herstellungsangaben.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local remotes = ReplicatedStorage:FindFirstChild("FireworkRemotes") or Instance.new("Folder")
+remotes.Name = "FireworkRemotes"
+remotes.Parent = ReplicatedStorage
+
+local action = remotes:FindFirstChild("Action") or Instance.new("RemoteEvent")
+action.Name = "Action"
+action.Parent = remotes
+
+local stateEvent = remotes:FindFirstChild("State") or Instance.new("RemoteEvent")
+stateEvent.Name = "State"
+stateEvent.Parent = remotes
+
+local catalog = {
+    ProductTypes = {
+        ["Rakete"] = {base=80, risk=8, capacity=1},
+        ["Single Shot"] = {base=55, risk=3, capacity=1},
+        ["Vulkan"] = {base=100, risk=5, capacity=2},
+        ["Batterie"] = {base=180, risk=10, capacity=4},
+        ["Böller"] = {base=35, risk=14, capacity=1},
+    },
+    Colors = {Rot=4, Blau=5, Grün=4, Gold=8, Violett=7, Silber=6},
+    Sparks = {Glitzer=5, Kometen=7, Crackle=9, Weide=8, Ring=10},
+    Patterns = {Stern=5, Palme=8, Herz=12, Spiral=10, Konfetti=7},
+}
+
+local playerData = {}
+local plots = {}
+
+local function defaultRecipe()
+    return {product="Rakete", powder=2, colors={"Rot"}, spark="Glitzer", pattern="Stern", delay=1, packaging="Standard"}
+end
+
+local function serialize(data)
+    return {coins=data.coins, level=data.level, xp=data.xp, capacity=data.capacity, recipe=data.recipe, inventory=data.inventory, lastScore=data.lastScore, lastSale=data.lastSale}
+end
+
+local function push(player, message)
+    local data = playerData[player]
+    if data then
+        stateEvent:FireClient(player, serialize(data), message or "")
+    end
+end
+
+local function createPlot(player)
+    local index = #plots + 1
+    local model = Instance.new("Model")
+    model.Name = "Factory_" .. player.UserId
+    model:SetAttribute("OwnerUserId", player.UserId)
+    model.Parent = workspace
+    local origin = Vector3.new((index - 1) * 70, 0, 0)
+    local floor = Instance.new("Part")
+    floor.Name = "FactoryFloor"
+    floor.Size = Vector3.new(58, 1, 48)
+    floor.Position = origin + Vector3.new(0, -0.5, 0)
+    floor.Anchored = true
+    floor.Material = Enum.Material.Concrete
+    floor.Color = Color3.fromRGB(70, 76, 88)
+    floor.Parent = model
+    local sign = Instance.new("Part")
+    sign.Name = "FactorySign"
+    sign.Size = Vector3.new(16, 7, 0.5)
+    sign.Position = origin + Vector3.new(0, 5, -23)
+    sign.Anchored = true
+    sign.Color = Color3.fromRGB(255, 155, 45)
+    sign.Parent = model
+    local gui = Instance.new("SurfaceGui")
+    gui.Face = Enum.NormalId.Front
+    gui.Parent = sign
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.fromScale(1, 1)
+    label.BackgroundTransparency = 1
+    label.TextScaled = true
+    label.Font = Enum.Font.GothamBold
+    label.TextColor3 = Color3.new(1,1,1)
+    label.Text = player.DisplayName .. "'s Factory"
+    label.Parent = gui
+    local spawn = Instance.new("SpawnLocation")
+    spawn.Name = "FactorySpawn"
+    spawn.Size = Vector3.new(5, 1, 5)
+    spawn.Position = origin + Vector3.new(0, 1, 15)
+    spawn.Anchored = true
+    spawn.Neutral = false
+    spawn.BrickColor = BrickColor.new("Bright green")
+    spawn.Parent = model
+    plots[player] = {model=model, origin=origin}
+end
+
+local function removePlot(player)
+    if plots[player] then plots[player].model:Destroy(); plots[player] = nil end
+end
+
+local function validateRecipe(recipe, data)
+    if type(recipe) ~= "table" or not catalog.ProductTypes[recipe.product] then return false, "Produkttyp fehlt." end
+    local p = tonumber(recipe.powder) or 0
+    if p < 1 or p > data.capacity then return false, "Diese virtuelle Pulvermenge ist noch nicht freigeschaltet." end
+    if type(recipe.colors) ~= "table" or #recipe.colors < 1 or #recipe.colors > 3 then return false, "Wähle 1 bis 3 Farben." end
+    for _, c in ipairs(recipe.colors) do if not catalog.Colors[c] then return false, "Ungültige Farbe." end end
+    if not catalog.Sparks[recipe.spark] or not catalog.Patterns[recipe.pattern] then return false, "Effekt nicht freigeschaltet." end
+    return true
+end
+
+local function scoreRecipe(recipe)
+    local product = catalog.ProductTypes[recipe.product]
+    local score = 35 + math.min(25, (#recipe.colors * 6)) + catalog.Sparks[recipe.spark] + catalog.Patterns[recipe.pattern]
+    score += math.min(18, (tonumber(recipe.powder) or 1) * 4)
+    score -= product.risk
+    score += math.random(-5, 8)
+    return math.clamp(score, 10, 100)
+end
+
+local function addXP(player, amount)
+    local data = playerData[player]
+    data.xp += amount
+    while data.xp >= data.level * 100 do data.xp -= data.level * 100; data.level += 1; data.capacity = math.min(10, data.capacity + 1) end
+end
+
+Players.PlayerAdded:Connect(function(player)
+    playerData[player] = {coins=500, level=1, xp=0, capacity=2, recipe=defaultRecipe(), inventory={}, lastScore=0, lastSale=0}
+    local leaderstats = Instance.new("Folder"); leaderstats.Name = "leaderstats"; leaderstats.Parent = player
+    local coins = Instance.new("IntValue"); coins.Name = "Coins"; coins.Value = 500; coins.Parent = leaderstats
+    createPlot(player)
+    task.wait(1)
+    push(player, "Willkommen in deiner Feuerwerk-Fabrik!")
+end)
+
+Players.PlayerRemoving:Connect(function(player) playerData[player] = nil; removePlot(player) end)
+
+action.OnServerEvent:Connect(function(player, command, payload)
+    local data = playerData[player]; if not data then return end
+    if command == "SetRecipe" then
+        local ok, err = validateRecipe(payload, data)
+        if ok then data.recipe = payload; push(player, "Rezept gespeichert.") else push(player, err) end
+    elseif command == "Test" then
+        local ok, err = validateRecipe(data.recipe, data)
+        if not ok then push(player, err); return end
+        local score = scoreRecipe(data.recipe); data.lastScore = score; addXP(player, 20)
+        push(player, "Testshow abgeschlossen: " .. score .. "/100 Punkte.")
+    elseif command == "Produce" then
+        local ok, err = validateRecipe(data.recipe, data)
+        if not ok then push(player, err); return end
+        table.insert(data.inventory, {recipe=data.recipe, score=data.lastScore > 0 and data.lastScore or scoreRecipe(data.recipe)})
+        addXP(player, 10); push(player, "Produziert! Lagerbestand: " .. #data.inventory)
+    elseif command == "Sell" then
+        if #data.inventory == 0 then push(player, "Dein Lager ist leer."); return end
+        local item = table.remove(data.inventory, 1); local reward = math.floor(catalog.ProductTypes[item.recipe.product].base * (0.7 + item.score / 100))
+        data.coins += reward; data.lastSale = reward; player.leaderstats.Coins.Value = data.coins; addXP(player, 15)
+        push(player, "Verkauft für " .. reward .. " Coins.")
+    elseif command == "Upgrade" then
+        local price = data.level * 350
+        if data.coins < price then push(player, "Du brauchst " .. price .. " Coins für das nächste Upgrade."); return end
+        data.coins -= price; data.capacity = math.min(10, data.capacity + 1); player.leaderstats.Coins.Value = data.coins; push(player, "Werkbank verbessert: mehr virtuelle Komponenten möglich.")
+    end
+end)
+]]></ProtectedString></Properties></Item></Item><Item class="StarterPlayer"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript"><Properties><string name="Name">FireworkFactory.client</string><ProtectedString name="Source"><![CDATA[-- Firework Factory Tycoon | Client workshop UI
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local player = Players.LocalPlayer
+local remotes = ReplicatedStorage:WaitForChild("FireworkRemotes")
+local action = remotes:WaitForChild("Action")
+local stateEvent = remotes:WaitForChild("State")
+
+local products = {"Rakete", "Single Shot", "Vulkan", "Batterie", "Böller"}
+local colors = {"Rot", "Blau", "Grün", "Gold", "Violett", "Silber"}
+local sparks = {"Glitzer", "Kometen", "Crackle", "Weide", "Ring"}
+local patterns = {"Stern", "Palme", "Herz", "Spiral", "Konfetti"}
+local recipe = {product="Rakete", powder=2, colors={"Rot"}, spark="Glitzer", pattern="Stern", delay=1, packaging="Standard"}
+local selectedColors = {Rot=true}
+
+local gui = Instance.new("ScreenGui"); gui.Name = "FireworkFactoryUI"; gui.ResetOnSpawn = false; gui.Parent = player:WaitForChild("PlayerGui")
+local panel = Instance.new("Frame"); panel.Size = UDim2.fromOffset(430, 610); panel.Position = UDim2.new(0, 22, 0.5, -305); panel.BackgroundColor3 = Color3.fromRGB(24, 27, 38); panel.BorderSizePixel = 0; panel.Parent = gui
+local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, 14); corner.Parent = panel
+local title = Instance.new("TextLabel"); title.Size = UDim2.new(1, -30, 0, 42); title.Position = UDim2.fromOffset(15, 12); title.BackgroundTransparency = 1; title.Text = "FEUERWERK-WERKBANK"; title.TextColor3 = Color3.fromRGB(255, 183, 66); title.Font = Enum.Font.GothamBold; title.TextSize = 22; title.Parent = panel
+local status = Instance.new("TextLabel"); status.Size = UDim2.new(1, -30, 0, 36); status.Position = UDim2.fromOffset(15, 52); status.BackgroundTransparency = 1; status.TextWrapped = true; status.TextColor3 = Color3.fromRGB(205, 210, 225); status.Font = Enum.Font.Gotham; status.TextSize = 14; status.Text = "Stelle dein virtuelles Feuerwerk zusammen."; status.Parent = panel
+
+local y = 96
+local function label(text)
+    local l = Instance.new("TextLabel"); l.Size = UDim2.new(1, -30, 0, 22); l.Position = UDim2.fromOffset(15, y); l.BackgroundTransparency = 1; l.TextXAlignment = Enum.TextXAlignment.Left; l.Text = text; l.TextColor3 = Color3.fromRGB(240,240,245); l.Font = Enum.Font.GothamBold; l.TextSize = 14; l.Parent = panel; y += 24; return l
+end
+local function button(text, width)
+    local b = Instance.new("TextButton"); b.Size = UDim2.fromOffset(width or 120, 32); b.Position = UDim2.fromOffset(15, y); b.BackgroundColor3 = Color3.fromRGB(51, 58, 78); b.TextColor3 = Color3.fromRGB(245,245,250); b.Font = Enum.Font.Gotham; b.TextSize = 13; b.Text = text; b.AutoButtonColor = true; b.Parent = panel; local c=Instance.new("UICorner"); c.CornerRadius=UDim.new(0,7); c.Parent=b; return b
+end
+local function rowButtons(items, callback)
+    local x = 15; local startY = y
+    for _, item in ipairs(items) do
+        local b = button(item, math.max(72, math.min(130, #item*9+25))); b.Position = UDim2.fromOffset(x, startY); b.MouseButton1Click:Connect(function() callback(item,b) end); x += b.Size.X.Offset + 6
+        if x > 390 then x=15; y += 38 end
+    end
+    y = math.max(y + 38, startY + 38)
+end
+
+label("1. Produkttyp")
+rowButtons(products, function(item) recipe.product=item end)
+label("2. Virtuelle Pulvermenge: 1–10")
+local minus=button("−", 42); minus.Position=UDim2.fromOffset(15,y); local amount=Instance.new("TextLabel"); amount.Size=UDim2.fromOffset(80,32); amount.Position=UDim2.fromOffset(62,y); amount.BackgroundColor3=Color3.fromRGB(40,45,61); amount.TextColor3=Color3.new(1,1,1); amount.Font=Enum.Font.GothamBold; amount.TextSize=16; amount.Text=tostring(recipe.powder); amount.Parent=panel; local plus=button("+",42); plus.Position=UDim2.fromOffset(148,y); y+=44
+minus.MouseButton1Click:Connect(function() recipe.powder=math.max(1,recipe.powder-1); amount.Text=tostring(recipe.powder) end)
+plus.MouseButton1Click:Connect(function() recipe.powder=math.min(10,recipe.powder+1); amount.Text=tostring(recipe.powder) end)
+label("3. Farben auswählen (mehrere möglich)")
+rowButtons(colors, function(item,b) selectedColors[item]=not selectedColors[item]; b.BackgroundColor3=selectedColors[item] and Color3.fromRGB(223,123,42) or Color3.fromRGB(51,58,78) end)
+label("4. Funken-Effekt")
+rowButtons(sparks, function(item) recipe.spark=item end)
+label("5. Muster")
+rowButtons(patterns, function(item) recipe.pattern=item end)
+label("6. Aktionen")
+local save=button("Rezept speichern",125); save.Position=UDim2.fromOffset(15,y); local test=button("Testshow zünden",125); test.Position=UDim2.fromOffset(150,y); local produce=button("Produzieren",105); produce.Position=UDim2.fromOffset(285,y); y+=42
+local sell=button("Erstes Lagerprodukt verkaufen",210); sell.Position=UDim2.fromOffset(15,y); local upgrade=button("Werkbank upgraden",150); upgrade.Position=UDim2.fromOffset(235,y)
+local function collectColors() local result={} for _, c in ipairs(colors) do if selectedColors[c] then table.insert(result,c) end end return result end
+save.MouseButton1Click:Connect(function() recipe.colors=collectColors(); action:FireServer("SetRecipe", recipe) end)
+test.MouseButton1Click:Connect(function() action:FireServer("Test") end)
+produce.MouseButton1Click:Connect(function() action:FireServer("Produce") end)
+sell.MouseButton1Click:Connect(function() action:FireServer("Sell") end)
+upgrade.MouseButton1Click:Connect(function() action:FireServer("Upgrade") end)
+stateEvent.OnClientEvent:Connect(function(data, message) if data.recipe then recipe=data.recipe end; status.Text=message .. "   |   Level " .. data.level .. "   |   Coins " .. data.coins .. "   |   Lager " .. #data.inventory end)
+]]></ProtectedString></Properties></Item></Item></Item><Item class="Workspace"><Properties><string name="Name">Workspace</string></Properties></Item><Item class="Players"><Properties><string name="Name">Players</string></Properties></Item><Item class="Lighting"><Properties><string name="Name">Lighting</string></Properties></Item>
+</roblox>
